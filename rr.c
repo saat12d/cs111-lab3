@@ -207,10 +207,8 @@ int main(int argc, char *argv[])
     }
 
     if(p->remaining_time > 0){
-      // not done: requeue
       TAILQ_INSERT_TAIL(&list, p, pointers);
     } else {
-      //finished, accumulate waiting
       finished++;
       total_waiting_time += (current_time - p->arrival_time - p->burst_time);
     }
@@ -224,6 +222,7 @@ int main(int argc, char *argv[])
   free(data);
   return 0;
 }
+
 
 
 
