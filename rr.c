@@ -21,6 +21,8 @@ struct process
   TAILQ_ENTRY(process) pointers;
 
   /* Additional fields here */
+  u32 remaining_time;
+  bool started;
   /* End of "Additional fields here" */
 };
 
@@ -160,6 +162,65 @@ int main(int argc, char *argv[])
   u32 total_response_time = 0;
 
   /* Your code here */
+
+  /* Round Robin scheduling */
+  u32 current_time = 0;
+  u32 finished = 0;
+  u32 next_idx = 0;
+
+  /* Enqueue any processes arriving at time 0 */
+  while (next_idx < size && data[next_idx].arrival_time <= current_time)
+  {
+    TAILQ_INSERT_TAIL(&ready_queue, &data[next_idx], pointers);
+    next_idx++;
+  }
+
+  while (finished < size)
+  {
+    if (TAILQ_EMPTY(&ready_queue))
+    {
+      /* Jump forward to next arrival if no one is ready */
+      current_time = data[next_idx].arrival_time;
+      TAILQ_INSERT_TAIL(&ready_queue, &data[next_idx], pointers);
+      next_idx++;
+      continue;
+    }
+
+    /* Dequeue next process */
+    struct process *p = TAILQ_FIRST(&ready_queue);
+    TAILQ_REMOVE(&ready_queue, p, pointers);
+
+    /* Record response time at first service */
+    if (!p->started)
+    {
+      total_response_time += (current_time - p->arrival_time);
+      p->started = true;
+    }
+
+    /* Execute up to one quantum */
+    u32 slice = (p->remaining_time < quantum_length) ? p->remaining_time : quantum_length;
+    p->remaining_time -= slice;
+    current_time += slice;
+
+    /* Enqueue newly arrived processes */
+    while (next_idx < size && data[next_idx].arrival_time <= current_time)
+    {
+      TAILQ_INSERT_TAIL(&ready_queue, &data[next_idx], pointers);
+      next_idx++;
+    }
+
+    if (p->remaining_time > 0)
+    {
+      /* Not finished yet, requeue */
+      TAILQ_INSERT_TAIL(&ready_queue, p, pointers);
+    }
+    else
+    {
+      /* Process finished, accumulate waiting time */
+      finished++;
+      total_waiting_time += (current_time - p->arrival_time - p->burst_time);
+    }
+  }
   
   /* End of "Your code here" */
 
@@ -169,3 +230,4 @@ int main(int argc, char *argv[])
   free(data);
   return 0;
 }
+
