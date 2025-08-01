@@ -162,63 +162,61 @@ int main(int argc, char *argv[])
   u32 total_response_time = 0;
 
   /* Your code here */
+  for (u32 i = 0; i < size; ++i) {
+    data[i].remaining_time = data[i].burst_time;
+    data[i].started = false;
+  }
 
-  /* Round Robin scheduling */
   u32 current_time = 0;
   u32 finished = 0;
   u32 next_idx = 0;
 
-  /* Enqueue any processes arriving at time 0 */
-  while (next_idx < size && data[next_idx].arrival_time <= current_time)
-  {
-    TAILQ_INSERT_TAIL(&ready_queue, &data[next_idx], pointers);
+  // enqueue any that arrive at time 0
+  while (next_idx < size && data[next_idx].arrival_time <= current_time) {
+    TAILQ_INSERT_TAIL(&list, &data[next_idx], pointers);
     next_idx++;
   }
 
-  while (finished < size)
-  {
-    if (TAILQ_EMPTY(&ready_queue))
-    {
-      /* Jump forward to next arrival if no one is ready */
+  // main RR loop
+  while (finished < size) {
+    if (TAILQ_EMPTY(&list)) {
+      // no ready process: jump to next arrival
       current_time = data[next_idx].arrival_time;
-      TAILQ_INSERT_TAIL(&ready_queue, &data[next_idx], pointers);
+      TAILQ_INSERT_TAIL(&list, &data[next_idx], pointers);
       next_idx++;
       continue;
     }
 
-    /* Dequeue next process */
-    struct process *p = TAILQ_FIRST(&ready_queue);
-    TAILQ_REMOVE(&ready_queue, p, pointers);
+    struct process *p = TAILQ_FIRST(&list);
+    TAILQ_REMOVE(&list, p, pointers);
 
-    /* Record response time at first service */
-    if (!p->started)
-    {
+    // record response time on first dispatch
+    if (!p->started) {
       total_response_time += (current_time - p->arrival_time);
       p->started = true;
     }
 
-    /* Execute up to one quantum */
-    u32 slice = (p->remaining_time < quantum_length) ? p->remaining_time : quantum_length;
+    // run for one quantum (or until completion)
+    u32 slice = (p->remaining_time < quantum_length)
+                    ? p->remaining_time
+                    : quantum_length;
     p->remaining_time -= slice;
     current_time += slice;
 
-    /* Enqueue newly arrived processes */
-    while (next_idx < size && data[next_idx].arrival_time <= current_time)
-    {
-      TAILQ_INSERT_TAIL(&ready_queue, &data[next_idx], pointers);
+    // enqueue any newly arrived
+    while (next_idx < size && data[next_idx].arrival_time <= current_time) {
+      TAILQ_INSERT_TAIL(&list, &data[next_idx], pointers);
       next_idx++;
     }
 
-    if (p->remaining_time > 0)
-    {
-      /* Not finished yet, requeue */
-      TAILQ_INSERT_TAIL(&ready_queue, p, pointers);
-    }
-    else
-    {
-      /* Process finished, accumulate waiting time */
+    if (p->remaining_time > 0) {
+      // not done: requeue
+      TAILQ_INSERT_TAIL(&list, p, pointers);
+    } else {
+      // finished: accumulate waiting
       finished++;
-      total_waiting_time += (current_time - p->arrival_time - p->burst_time);
+      total_waiting_time +=
+          (current_time - p->arrival_time - p->burst_time);
     }
   }
   
@@ -230,4 +228,5 @@ int main(int argc, char *argv[])
   free(data);
   return 0;
 }
+
 
