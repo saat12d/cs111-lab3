@@ -212,8 +212,7 @@ int main(int argc, char *argv[])
     } else {
       //finished, accumulate waiting
       finished++;
-      total_waiting_time +=
-          (current_time - p->arrival_time - p->burst_time);
+      total_waiting_time += (current_time - p->arrival_time - p->burst_time);
     }
   }
   
@@ -225,6 +224,7 @@ int main(int argc, char *argv[])
   free(data);
   return 0;
 }
+
 
 
 
